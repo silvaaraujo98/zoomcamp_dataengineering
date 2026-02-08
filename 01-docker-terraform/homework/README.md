@@ -15,12 +15,13 @@ Markdown
    ```bash
    docker run -it --rm --entrypoint bash python:3.13-slim
 2. Execute the version check command:
-    ```
+    ```bash
     pip --version
 
 **Output:**
 ```text
 pip 25.3 from /usr/local/lib/python3.13/site-packages/pip (python 3.13)
+```
 
 ## Question 2. Understanding Docker networking and docker-compose
 
@@ -58,10 +59,11 @@ volumes:
     name: vol-pgadmin_data
 ```
 
-- postgres:5433
-- localhost:5432
-- db:5433
-- postgres:5432
-- db:5432
+- [ ] postgres:5433
+- [ ] localhost:5432
+- [ ] db:5433
+- [x] <span style="color:green"> **postgres:5432** </span>
+- [x] <span style="color:green"> **db:5432** </span>
 
 If multiple answers are correct, select any
+![alt text](image-1.png)
