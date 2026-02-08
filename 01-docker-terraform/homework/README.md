@@ -58,12 +58,13 @@ volumes:
   vol-pgadmin_data:
     name: vol-pgadmin_data
 ```
-
+If multiple answers are correct, select any
 - [ ] postgres:5433
 - [ ] localhost:5432
 - [ ] db:5433
 - [x] <span style="color:green"> **postgres:5432** </span>
 - [x] <span style="color:green"> **db:5432** </span>
 
-If multiple answers are correct, select any
+
 ![alt text](image-1.png)
+Image with the connection that works using the ui from pgadmin
