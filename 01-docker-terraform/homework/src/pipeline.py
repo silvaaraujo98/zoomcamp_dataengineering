@@ -41,7 +41,7 @@ def steps_pipeline():
     engine = create_connection()
     send_csv(engine)
     send_parquet(engine)
-
+# Fazer as queries do trabalho de casa, mas 
 
 
 
