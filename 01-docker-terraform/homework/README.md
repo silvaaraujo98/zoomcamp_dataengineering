@@ -162,11 +162,11 @@ For the passengers picked up in the zone named "East Harlem North" in November 2
 
 Note: it's `tip` , not `trip`. We need the name of the zone, not the ID.
 
-- [] JFK Airport
+- [ ] JFK Airport
 - [x] <span style="color:green"> East Harlem South </span>
-- [] Yorkville West
-- [] East Harlem North
-- [] LaGuardia Airport
+- [ ] Yorkville West
+- [ ] East Harlem North
+- [ ] LaGuardia Airport
 
 **Solution**
 ``` sql
