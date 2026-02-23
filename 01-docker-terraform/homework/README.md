@@ -115,15 +115,45 @@ Use the pick up time for your calculations.
 - [ ] 2025-11-23
 - [ ] 2025-11-25
 
-
+**Solution:**
+```sql
+SELECT 
+    lpep_pickup_datetime 
+FROM 
+    public.green_taxi_data 
+WHERE 
+    trip_distance < 100
+ORDER BY 
+    trip_distance DESC 
+LIMIT 1;
+```
 ## Question 5. Biggest pickup zone
 
 Which was the pickup zone with the largest `total_amount` (sum of all trips) on November 18th, 2025?
 
-- East Harlem North
-- East Harlem South
-- Morningside Heights
-- Forest Hills
+- [ ] East Harlem North
+- [X] <span style="color:green"> East Harlem South </span>
+- [ ] Morningside Heights
+- [ ] Forest Hills
+
+**Solution**
+```sql
+SELECT 
+    t2."Zone",
+    SUM(t1.total_amount) AS total_daily_revenue
+FROM 
+    public.green_taxi_data AS t1 
+LEFT JOIN 
+    public.taxi_zone AS t2
+    ON t1."PULocationID" = t2."LocationID"::INTEGER
+WHERE 
+    t1.lpep_pickup_datetime::DATE = '2025-11-18'
+GROUP BY 
+    t2."Zone"
+ORDER BY 
+    total_daily_revenue DESC
+LIMIT 1
+```
 
 
 ## Question 6. Largest tip
@@ -132,11 +162,32 @@ For the passengers picked up in the zone named "East Harlem North" in November 2
 
 Note: it's `tip` , not `trip`. We need the name of the zone, not the ID.
 
-- JFK Airport
-- Yorkville West
-- East Harlem North
-- LaGuardia Airport
+- [] JFK Airport
+- [x] <span style="color:green"> East Harlem South </span>
+- [] Yorkville West
+- [] East Harlem North
+- [] LaGuardia Airport
 
+**Solution**
+``` sql
+SELECT 
+   t3."Zone"
+FROM 
+    public.green_taxi_data AS t1 
+LEFT JOIN 
+    public.taxi_zone AS t2
+    ON t1."PULocationID" = t2."LocationID"::INTEGER
+LEFT JOIN 
+	public.taxi_zone AS t3
+	ON t1."DOLocationID" =  t3."LocationID"::INTEGER
+WHERE 
+    TO_CHAR(t1.lpep_pickup_datetime,'mm:yyyy') = '11:2025' 
+	AND
+	t2."Zone" = 'East Harlem North'
+ORDER BY
+	tip_amount DESC
+LIMIT 1
+```
 
 ## Terraform
 
