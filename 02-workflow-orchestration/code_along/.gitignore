@@ -1,0 +1,7 @@
+# Ignorar todos os arquivos de variáveis de ambiente
+.env
+.env*
+
+#Ignorar arquivos JSON
+
+*.json

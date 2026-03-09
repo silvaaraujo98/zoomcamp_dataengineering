@@ -1,0 +1,4 @@
+.env
+#Ignorar arquivos JSON
+
+*.json
