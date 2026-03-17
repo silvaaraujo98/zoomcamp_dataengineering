@@ -27,16 +27,90 @@ As a hint, Kestra makes that process really easy:
 Complete the quiz shown below. It's a set of 6 multiple-choice questions to test your understanding of workflow orchestration, Kestra, and ETL pipelines.
 
 1) Within the execution for `Yellow` Taxi data for the year `2020` and month `12`: what is the uncompressed file size (i.e. the output file `yellow_tripdata_2020-12.csv` of the `extract` task)?
-- 128.3 MiB
-- 134.5 MiB
-- 364.7 MiB
-- 692.6 MiB
+- [ ] 128.3 MiB
+- [x] <span style="color:green"> **134.5 MiB** </span>
+- [ ] 364.7 MiB
+- [ ] 692.6 MiB
+
+**Solution:**
+
+    I inserted two tasks.
+
+    The first one, get_size, retrieves the file, calculates the size, and stores it in a .txt file.
+
+    The second one, log_result, displays the value stored in the .txt file within the logs.
+
+```yaml
+id: 02_homework
+namespace: zoomcamp
+description: |
+  The CSV Data used in the course: https://github.com/DataTalksClub/nyc-tlc-data/releases
+
+inputs:
+  - id: taxi
+    type: SELECT
+    displayName: Select taxi type
+    values: [yellow, green]
+    defaults: green
+
+  - id: year
+    type: SELECT
+    displayName: Select year
+    values: ["2019", "2020","2021"]
+    defaults: "2019"
+
+  - id: month
+    type: SELECT
+    displayName: Select month
+    values: ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+    defaults: "01"
+
+variables:
+  file: "{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"
+  staging_table: "public.{{inputs.taxi}}_tripdata_staging"
+  table: "public.{{inputs.taxi}}_tripdata"
+  data: "{{outputs.extract.outputFiles[inputs.taxi ~ '_tripdata_' ~ inputs.year ~ '-' ~ inputs.month ~ '.csv']}}"
+
+tasks:
+  - id: set_label
+    type: io.kestra.plugin.core.execution.Labels
+    labels:
+      file: "{{render(vars.file)}}"
+      taxi: "{{inputs.taxi}}"
+
+  - id: extract
+    type: io.kestra.plugin.scripts.shell.Commands
+    outputFiles:
+      - "*.csv"
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    commands:
+      - wget -qO- https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{{inputs.taxi}}/{{render(vars.file)}}.gz | gunzip > {{render(vars.file)}}
+
+  - id: get_size
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - stat -c%s {{render(vars['data'])}} > size.txt
+    outputFiles:
+      - size.txt
+
+
+  - id: log_result
+    type: io.kestra.plugin.core.log.Log
+    message: "The captured size is {{ read(outputs.get_size.outputFiles['size.txt'])}} bytes."
+```
+
 
 2) What is the rendered value of the variable `file` when the inputs `taxi` is set to `green`, `year` is set to `2020`, and `month` is set to `04` during execution?
-- `{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv` 
-- `green_tripdata_2020-04.csv`
-- `green_tripdata_04_2020.csv`
-- `green_tripdata_2020.csv`
+- [ ]`{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv` 
+- [x] <span style="color:green"> **`green_tripdata_2020-04.csv`** </span>
+- [ ] `green_tripdata_04_2020.csv`
+- [ ]`green_tripdata_2020.csv`
+
+**Solution:**
+- I performed some reverse engineering and built the variable using the inputs.
+
+- To be certain, I ran the workflow with those inputs and retrieved the file "green_tripdata_2020-04.csv" from the output of the extract task.
 
 3) How many rows are there for the `Yellow` Taxi data for all CSV files in the year 2020?
 - 13,537.299
@@ -51,10 +125,10 @@ Complete the quiz shown below. It's a set of 6 multiple-choice questions to test
 - 1,342,034
 
 5) How many rows are there for the `Yellow` Taxi data for the March 2021 CSV file?
-- 1,428,092
-- 706,911
-- 1,925,152
-- 2,561,031
+- [ ] 1,428,092
+- [ ] 706,911
+- [x]<span style="color:greeen"> **1,925,152** </span>
+- [ ] 2,561,031
 
 6) How would you configure the timezone to New York in a Schedule trigger?
 - Add a `timezone` property set to `EST` in the `Schedule` trigger configuration  
