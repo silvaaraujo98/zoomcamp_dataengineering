@@ -102,10 +102,10 @@ tasks:
 
 
 2) What is the rendered value of the variable `file` when the inputs `taxi` is set to `green`, `year` is set to `2020`, and `month` is set to `04` during execution?
-- [ ]`{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv` 
+- [ ] `{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv` 
 - [x] <span style="color:green"> **`green_tripdata_2020-04.csv`** </span>
 - [ ] `green_tripdata_04_2020.csv`
-- [ ]`green_tripdata_2020.csv`
+- [ ] `green_tripdata_2020.csv`
 
 **Solution:**
 - I performed some reverse engineering and built the variable using the inputs.
@@ -113,10 +113,11 @@ tasks:
 - To be certain, I ran the workflow with those inputs and retrieved the file "green_tripdata_2020-04.csv" from the output of the extract task.
 
 ** Notes :**
-- I used the following flow for all the next three questions:
+- The next three questions are based on the following flow:
 ```yaml
 id: test_for_each
 namespace: zoomcamp
+NYC Taxi Data Kestra Pipeline. An iterative workflow that utilizes ForEach to download .csv.gz files, processes them within a container using Pandas to extract metrics (row count), and executes UPSERT queries in PostgreSQL to maintain a file processing history.
 
 variables:
   # We use single quotes so Kestra treats this as a literal string 
@@ -215,7 +216,7 @@ pluginDefaults:
 - [ ] 29,430,127
 
 **Solution**:
-- After built the flow, i wrote the following query:
+- After building the flow, I wrote the following query:
 ```sql
 SELECT 
 	SUM(quantidade_linhas) 
@@ -231,7 +232,7 @@ WHERE
 - [x] <span style="color:green"> **1,734,051** </span>
 - [ ] 1,342,034
 **Solution**:
-- After built the flow, i wrote the following query:
+- After building the flow, I wrote the following query:
 ```sql
 SELECT 
 	SUM(quantidade_linhas) 
@@ -244,10 +245,10 @@ WHERE
 5) How many rows are there for the `Yellow` Taxi data for the March 2021 CSV file?
 - [ ] 1,428,092
 - [ ] 706,911
-- [x]<span style="color:greeen"> **1,925,152** </span>
+- [x] <span style="color:green"> **1,925,152** </span>
 - [ ] 2,561,031
 **Solution**:
-- After built the flow, i wrote the following query:
+- After building the flow, I wrote the following query:
 ```sql
 SELECT 
 	quantidade_linhas
@@ -258,10 +259,10 @@ WHERE
 ```
 
 6) How would you configure the timezone to New York in a Schedule trigger?
-- Add a `timezone` property set to `EST` in the `Schedule` trigger configuration  
-- Add a `timezone` property set to `America/New_York` in the `Schedule` trigger configuration
-- Add a `timezone` property set to `UTC-5` in the `Schedule` trigger configuration
-- Add a `location` property set to `New_York` in the `Schedule` trigger configuration  
+- [ ] Add a `timezone` property set to `EST` in the `Schedule` trigger configuration  
+- [x] <span style="color:green"> **Add a `timezone` property set to `America/New_York` in the `Schedule` trigger configuration** </span>
+- [ ]Add a `timezone` property set to `UTC-5` in the `Schedule` trigger configuration
+- [ ] Add a `location` property set to `New_York` in the `Schedule` trigger configuration  
 
 ## Submitting the solutions
 
