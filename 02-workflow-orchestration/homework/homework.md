@@ -112,23 +112,150 @@ tasks:
 
 - To be certain, I ran the workflow with those inputs and retrieved the file "green_tripdata_2020-04.csv" from the output of the extract task.
 
+** Notes :**
+- I used the following flow for all the next three questions:
+```yaml
+id: test_for_each
+namespace: zoomcamp
+
+variables:
+  # We use single quotes so Kestra treats this as a literal string 
+  # and doesn't try to find 'month' yet.
+  file_template: "{{ inputs.taxi }}_tripdata_{{ inputs.year }}-{{ taskrun.value}}.csv"
+  table: "public.{{inputs.taxi}}_tripdata"
+  staging_table: "public.{{inputs.taxi}}_tripdata_staging"
+  data: "{{ outputs.extract[taskrun.value].outputFiles[render(vars.file_template)] }}"
+
+inputs:
+  - id: taxi
+    type: SELECT
+    values: [yellow, green]
+    defaults: green
+  - id: year
+    type: SELECT
+    values: ["2019", "2020", "2021"]
+    defaults: "2019"
+
+tasks:
+  - id: iterating_over_months
+    type: io.kestra.plugin.core.flow.ForEach
+    values: ["01","02","03","04","05","06","07","08","09","10","11","12"]
+    tasks:
+      - id: log_file
+        type: io.kestra.plugin.core.log.Log
+        # We manually pass 'taskrun.value' into the 'month' placeholder
+        message: "File is: {{ render(vars.file_template) }}"
+
+      - id: extract
+        type: io.kestra.plugin.scripts.shell.Commands
+        outputFiles:
+        - "*.csv"
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process 
+        commands:
+          - wget -qO- https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{{inputs.taxi}}/{{render(vars.file_template)}}.gz | gunzip >  "{{render(vars.file_template)}}"
+      - id: check_file
+        type: io.kestra.plugin.core.log.Log
+        message: "O arquivo desta iteração é: {{ outputs.extract[taskrun.value].outputFiles }}"
+
+      - id: read_rows
+        type: io.kestra.plugin.scripts.python.Script
+        dependencies:
+          - pandas
+          - kestra
+          - numpy
+        inputFiles: 
+          data.csv: "{{vars.data}}"
+        script: |
+          import pandas as pd
+          from kestra import Kestra
+          df = pd.read_csv("data.csv")
+          length = len(df)
+          outputs = {
+          'length': length}
+          Kestra.outputs(outputs)
+
+      - id: create_table_in_postgres
+        type: io.kestra.plugin.jdbc.postgresql.Queries
+        sql: |
+         CREATE TABLE IF NOT EXISTS public.metadados_arquivos (
+             nome_arquivo VARCHAR(255) UNIQUE NOT NULL,
+             quantidade_linhas INTEGER
+             );
+
+      - id: check_log
+        type: io.kestra.plugin.core.log.Log
+        message: "{{outputs.read_rows[taskrun.value]}}"
+
+      - id: insert_data_in_postgres
+        type: io.kestra.plugin.jdbc.postgresql.Queries
+        sql: |
+           INSERT INTO metadados_arquivos (nome_arquivo, quantidade_linhas)
+           VALUES ('{{ render(vars.file_template) }}', {{outputs.read_rows[taskrun.value].vars.length}})
+           ON CONFLICT (nome_arquivo) 
+           DO NOTHING
+           ;
+        
+
+
+
+pluginDefaults:
+  - type: io.kestra.plugin.jdbc.postgresql
+    values:
+      url: jdbc:postgresql://pgdatabase:5432/ny_taxi
+      username: root
+      password: root
+
+```
+
 3) How many rows are there for the `Yellow` Taxi data for all CSV files in the year 2020?
-- 13,537.299
-- 24,648,499
-- 18,324,219
-- 29,430,127
+- [ ] 13,537.299
+- [x] <span style="color:green"> **24,648,499** </span>
+- [ ] 18,324,219
+- [ ] 29,430,127
+
+**Solution**:
+- After built the flow, i wrote the following query:
+```sql
+SELECT 
+	SUM(quantidade_linhas) 
+FROM 
+  public.metadados_arquivos 
+WHERE 
+  nome_arquivo ~ '^yellow_tripdata_2020-\d{2}\.csv$';
+```
 
 4) How many rows are there for the `Green` Taxi data for all CSV files in the year 2020?
-- 5,327,301
-- 936,199
-- 1,734,051
-- 1,342,034
+- [ ] 5,327,301
+- [ ] 936,199
+- [x] <span style="color:green"> **1,734,051** </span>
+- [ ] 1,342,034
+**Solution**:
+- After built the flow, i wrote the following query:
+```sql
+SELECT 
+	SUM(quantidade_linhas) 
+FROM 
+  public.metadados_arquivos 
+WHERE 
+  nome_arquivo ~ '^green_tripdata_2020-\d{2}\.csv$';
+```
 
 5) How many rows are there for the `Yellow` Taxi data for the March 2021 CSV file?
 - [ ] 1,428,092
 - [ ] 706,911
 - [x]<span style="color:greeen"> **1,925,152** </span>
 - [ ] 2,561,031
+**Solution**:
+- After built the flow, i wrote the following query:
+```sql
+SELECT 
+	quantidade_linhas
+FROM
+	metadados_arquivos
+WHERE
+	nome_arquivo = 'yellow_tripdata_2021-03.csv'
+```
 
 6) How would you configure the timezone to New York in a Schedule trigger?
 - Add a `timezone` property set to `EST` in the `Schedule` trigger configuration  
