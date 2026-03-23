@@ -112,7 +112,7 @@ tasks:
 
 - To be certain, I ran the workflow with those inputs and retrieved the file "green_tripdata_2020-04.csv" from the output of the extract task.
 
-** Notes :**
+**Notes:**
 - The next three questions are based on the following flow:
 ```yaml
 id: test_for_each
