@@ -153,7 +153,7 @@ CREATE OR REPLACE TABLE .SANDBOX.yellow_tripdata_partitioned_clustered
 PARTITION BY DATE(tpep_dropoff_datetime)
 CLUSTER BY VendorID
 AS
-SELECT * FROM `ipnet-data-cr.SANDBOX.external_yellow_tripdata`;
+SELECT * FROM `.SANDBOX.external_yellow_tripdata`;
 ```
 
 ## Question 6. Partition benefits
@@ -176,14 +176,14 @@ Choose the answer which most closely matches.
 **Solution:**
 ```sql
 SELECT DISTINCT (VendorID)
-FROM ipnet-data-cr.SANDBOX.yellow_tripdata_non_partitioned
+FROM SANDBOX.yellow_tripdata_non_partitioned
 WHERE
   tpep_dropoff_datetime >= '2024-03-01'
   AND tpep_dropoff_datetime <= '2024-03-15';
 -- 311.23MB
 
 SELECT DISTINCT (VendorID)
-FROM ipnet-data-cr.SANDBOX.yellow_tripdata_partitioned_clustered
+FROM SANDBOX.yellow_tripdata_partitioned_clustered
 WHERE
   tpep_dropoff_datetime >= '2024-03-01'
   AND tpep_dropoff_datetime <= '2024-03-15';
