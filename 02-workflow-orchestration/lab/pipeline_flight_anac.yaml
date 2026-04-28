@@ -1,0 +1,342 @@
+id: pipeline_flight_anac
+namespace: personal
+inputs:
+  - id: year
+    type: SELECT
+    displayName: "Select a Year"
+    defaults: "2025"
+    values: 
+      - "2019"
+      - "2020"
+      - "2021"
+      - "2022"
+      - "2023"
+      - "2024"
+      - "2025"
+  - id: month
+    type: SELECT
+    displayName: "Select a Month"
+    defaults: "01"
+    values: 
+      - "01"
+      - "02"
+      - "03"
+      - "04"
+      - "05"
+      - "06"
+      - "07"
+      - "08"
+      - "09"
+      - "10"
+      - "11"
+      - "12"
+variables:
+  endpoint: "https://sistemas.anac.gov.br/dadosabertos/Operador%20Aeroportu%C3%A1rio/Dados%20de%20Movimenta%C3%A7%C3%A3o%20Aeroportu%C3%A1rias/{{inputs.year}}/Movimentacoes_Aeroportuarias_{{inputs.year}}{{inputs.month}}.csv"
+  filename: "Movimentacoes_Aeroportuarias_{{inputs.year}}{{inputs.month}}.csv"
+
+    
+
+tasks:
+  - id: get_data
+    type: io.kestra.plugin.core.http.Download
+    uri: "{{render(vars.endpoint)}}"
+
+  - id: remove_first_line
+    type: io.kestra.plugin.scripts.shell.Commands
+    runner: PROCESS
+    commands:
+      - sed '1d' "{{ outputs.get_data.uri }}" > data_with_header.csv
+    outputFiles:
+      - data_with_header.csv
+
+  - id: create_table
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql: |
+      -- 1. Criar a tabela
+      CREATE TABLE IF NOT EXISTS movimentacao_aeroportuaria (
+          id_movimento VARCHAR(32) PRIMARY KEY,
+          ano SMALLINT NOT NULL,
+          mes SMALLINT NOT NULL,
+          dt_previsto DATE,
+          hh_previsto TIME,
+          dt_calco DATE,
+          hh_calco TIME,
+          dt_toque DATE,
+          hh_toque TIME,
+          nr_aeroporto_referencia CHAR(10),
+          nr_movimento_tipo VARCHAR(20),
+          nr_aeronave_marcas VARCHAR(10),
+          nr_aeronave_tipo VARCHAR(10),
+          nr_aeronave_operador VARCHAR(10),
+          nr_voo_outro_aeroporto VARCHAR(10),
+          nr_voo_numero VARCHAR(15),
+          nr_service_type TEXT,
+          nr_natureza VARCHAR(50),
+          nr_cabeceira VARCHAR(5),
+          nr_box VARCHAR(25),
+          nr_ponte_conector_remoto VARCHAR(50),
+          nr_terminal VARCHAR(20),
+          qt_pax_local INTEGER DEFAULT 0,
+          qt_pax_conexao_domestico INTEGER DEFAULT 0,
+          qt_pax_conexao_internacional INTEGER DEFAULT 0,
+          qt_correio NUMERIC(15, 3) DEFAULT 0,
+          qt_carga NUMERIC(15, 3) DEFAULT 0,
+          dh_ingestao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          nome_arquivo VARCHAR(100)
+      );
+
+      -- 2. Adicionar as descrições (Comments)
+      COMMENT ON TABLE movimentacao_aeroportuaria IS 'Dados de movimentação aeroportuária extraídos da ANAC';
+      
+      COMMENT ON COLUMN movimentacao_aeroportuaria.ano IS 'Ano de referência do registro';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.mes IS 'Mês de referência do registro';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.dt_previsto IS 'Data prevista para a operação';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.hh_previsto IS 'Hora prevista para a operação';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.dt_calco IS 'Data de colocação/retirada dos calços (chocks-off/on)';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_aeroporto_referencia IS 'Código ICAO do aeroporto onde o dado foi coletado';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_movimento_tipo IS 'Tipo de movimentação: Pouso ou Decolagem';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_aeronave_marcas IS 'Matrícula/Prefixo da aeronave';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_aeronave_tipo IS 'Modelo da aeronave (código ICAO)';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_aeronave_operador IS 'Código ICAO da empresa aérea operadora';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_voo_outro_aeroporto IS 'ICAO de origem (pouso) ou destino (decolagem)';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_service_type IS 'Tipo de serviço (Regular, Fretamento, Aviação Geral, etc)';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_natureza IS 'Natureza da operação: Doméstica ou Internacional';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_cabeceira IS 'Identificador da cabeceira da pista utilizada';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.nr_ponte_conector_remoto IS 'Tipo de embarque: Ponte (Finger), Conector ou Remoto';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.qt_pax_local IS 'Quantidade de passageiros com origem/destino no aeroporto';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.qt_pax_conexao_domestico IS 'Quantidade de passageiros em conexão nacional';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.qt_correio IS 'Peso de correio transportado em quilogramas';
+      COMMENT ON COLUMN movimentacao_aeroportuaria.qt_carga IS 'Peso de carga transportada em quilogramas';
+
+      -- 3. Índices (Sempre bom manter)
+      CREATE INDEX IF NOT EXISTS idx_mov_ano_mes ON movimentacao_aeroportuaria (ano, mes);
+
+  - id: log_conclusao
+    type: io.kestra.plugin.core.log.Log
+    message: "Tabela movimentacao_aeroportuaria verificada/criada com sucesso!"
+    
+  - id: create_staging_table
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql:
+      |
+      CREATE TABLE IF NOT EXISTS movimentacao_aeroportuaria_staging (
+          id_movimento TEXT,
+          ano TEXT,
+          mes TEXT,
+          dt_previsto TEXT,
+          hh_previsto TEXT,
+          dt_calco TEXT,
+          hh_calco TEXT,
+          dt_toque TEXT,
+          hh_toque TEXT,
+          nr_aeroporto_referencia TEXT,
+          nr_movimento_tipo TEXT,
+          nr_aeronave_marcas TEXT,
+          nr_aeronave_tipo TEXT,
+          nr_aeronave_operador TEXT,
+          nr_voo_outro_aeroporto TEXT,
+          nr_voo_numero TEXT,
+          nr_service_type TEXT,
+          nr_natureza TEXT,
+          nr_cabeceira TEXT,
+          nr_box TEXT,
+          nr_ponte_conector_remoto TEXT,
+          nr_terminal TEXT,
+          qt_pax_local TEXT,
+          qt_pax_conexao_domestico TEXT,
+          qt_pax_conexao_internacional TEXT,
+          qt_correio TEXT,
+          qt_carga TEXT,
+          dh_ingestao TEXT,
+          nome_arquivo TEXT
+      )
+  - id: log_conclusao_staging
+    type: io.kestra.plugin.core.log.Log
+    message: "Tabela stg_movimentacao_aeroportuaria verificada/criada com sucesso!"
+  
+  - id: create_cleaning_view
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql:
+      |
+      CREATE OR REPLACE VIEW public.vw_movimentacao_aeroportuaria_limpa AS
+      SELECT 
+      DISTINCT ON (id_movimento)
+      -- Chave Primária e IDs
+      id_movimento::VARCHAR(32) AS id_movimento,
+    
+      -- Datas e Horários com tratamento de nulos
+      NULLIF(ano, '')::SMALLINT AS ano,
+      NULLIF(mes, '')::SMALLINT AS mes,
+      NULLIF(dt_previsto, '')::DATE AS dt_previsto,
+      NULLIF(hh_previsto, '')::TIME AS hh_previsto,
+      NULLIF(dt_calco, '')::DATE AS dt_calco,
+      NULLIF(hh_calco, '')::TIME AS hh_calco,
+      NULLIF(dt_toque, '')::DATE AS dt_toque,
+      NULLIF(hh_toque, '')::TIME AS hh_toque,
+    
+      -- Strings (O cast implícito para VARCHAR/CHAR é seguro)
+      nr_aeroporto_referencia::CHAR(10) AS nr_aeroporto_referencia,
+      nr_movimento_tipo::VARCHAR(20) AS nr_movimento_tipo,
+      nr_aeronave_marcas::VARCHAR(10) AS nr_aeronave_marcas,
+      nr_aeronave_tipo::VARCHAR(10) AS nr_aeronave_tipo,
+      nr_aeronave_operador::VARCHAR(10) AS nr_aeronave_operador,
+      nr_voo_outro_aeroporto::VARCHAR(10) AS nr_voo_outro_aeroporto,
+      nr_voo_numero::VARCHAR(15) AS nr_voo_numero,
+      nr_service_type::TEXT AS nr_service_type,
+      nr_natureza::VARCHAR(50) AS nr_natureza,
+      nr_cabeceira::VARCHAR(5) AS nr_cabeceira,
+      nr_box::VARCHAR(25) AS nr_box,
+      nr_ponte_conector_remoto::VARCHAR(50) AS nr_ponte_conector_remoto,
+      nr_terminal::VARCHAR(20) AS nr_terminal,
+      -- Quantidades (Tratando tanto vazio quanto a palavra 'null')
+      COALESCE(NULLIF(NULLIF(qt_pax_local, ''), 'null')::INTEGER, 0) AS qt_pax_local,
+      COALESCE(NULLIF(NULLIF(qt_pax_conexao_domestico, ''), 'null')::INTEGER, 0) AS qt_pax_conexao_domestico,
+      COALESCE(NULLIF(NULLIF(qt_pax_conexao_internacional, ''), 'null')::INTEGER, 0) AS qt_pax_conexao_internacional,
+      COALESCE(NULLIF(NULLIF(qt_correio, ''), 'null')::NUMERIC(15, 3), 0) AS qt_correio,
+      COALESCE(NULLIF(NULLIF(qt_carga, ''), 'null')::NUMERIC(15, 3), 0) AS qt_carga,
+    
+      -- Auditoria
+      NULLIF(dh_ingestao, '')::TIMESTAMP AS dh_ingestao,
+      nome_arquivo::VARCHAR(100) AS nome_arquivo
+      FROM public.movimentacao_aeroportuaria_staging;
+
+  - id: create_conference_view
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql: |
+      CREATE TABLE IF NOT EXISTS public.movimentacao_aeroportuaria_duplicatas AS
+      SELECT * FROM public.movimentacao_aeroportuaria_staging WHERE FALSE;
+      WITH duplicatas AS (
+      SELECT id_movimento
+      FROM public.movimentacao_aeroportuaria_staging
+      GROUP BY id_movimento
+      HAVING COUNT(*) > 1
+      )
+      INSERT INTO public.movimentacao_aeroportuaria_duplicatas
+      SELECT * FROM public.movimentacao_aeroportuaria_staging
+      WHERE id_movimento IN (SELECT id_movimento FROM duplicatas);
+         
+
+  - id: truncate_staging
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql: |
+      TRUNCATE TABLE movimentacao_aeroportuaria_staging;
+  
+  - id: log_conclusao_truncate_staging
+    type: io.kestra.plugin.core.log.Log
+    message: "Tabela stg_movimentacao_aeroportuaria foi truncada com sucesso!"  
+ 
+
+  - id: copy_to_staging
+    type: io.kestra.plugin.jdbc.postgresql.CopyIn
+    format: CSV
+    from: "{{ outputs.remove_first_line.outputFiles['data_with_header.csv'] }}"
+    table: movimentacao_aeroportuaria_staging
+    columns: [ANO,MES,NR_AEROPORTO_REFERENCIA,NR_MOVIMENTO_TIPO,NR_AERONAVE_MARCAS,NR_AERONAVE_TIPO,NR_AERONAVE_OPERADOR,NR_VOO_OUTRO_AEROPORTO,NR_VOO_NUMERO,NR_SERVICE_TYPE,NR_NATUREZA,DT_PREVISTO,HH_PREVISTO,DT_CALCO,HH_CALCO,DT_TOQUE,HH_TOQUE,NR_CABECEIRA,NR_BOX,NR_PONTE_CONECTOR_REMOTO,NR_TERMINAL,QT_PAX_LOCAL,QT_PAX_CONEXAO_DOMESTICO,QT_PAX_CONEXAO_INTERNACIONAL,QT_CORREIO,QT_CARGA]
+    header: true
+    delimiter: ";"
+    nullString: "null"
+    forceNull: ["dt_previsto", "hh_previsto", "dt_calco","dt_toque"]
+
+  - id: log_conclusao_copy_to_staging
+    type: io.kestra.plugin.core.log.Log
+    message: "Dados do CSV foram copiados para staging"  
+
+  - id: create_id_ingestion_date_file_name
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql:
+      |
+      UPDATE movimentacao_aeroportuaria_staging
+      SET
+        id_movimento = md5(
+          COALESCE(dt_previsto,'') ||
+          COALESCE(hh_previsto,'') ||
+          COALESCE(NR_VOO_NUMERO,'') ||
+          COALESCE(NR_MOVIMENTO_TIPO,'') ||
+          COALESCE(NR_AERONAVE_OPERADOR,'') ||
+          COALESCE(NR_AEROPORTO_REFERENCIA,'') ||
+          COALESCE(nr_voo_outro_aeroporto,'') ||
+          COALESCE(nr_aeronave_marcas,'') ||
+          COALESCE(hh_toque,'') ||
+          COALESCE(nr_cabeceira,'') ||
+          COALESCE(dt_toque,'')
+          ),
+        dh_ingestao = NOW(),
+        nome_arquivo = '{{render(vars.filename)}}';
+
+  - id: log_conclusao_create_id_ingestion_date_filename
+    type: io.kestra.plugin.core.log.Log
+    message: "Colunas de id_movimento,dh_ingestao e nome_arquivo criados com sucesso"  
+    
+  - id: merge_data
+    type: io.kestra.plugin.jdbc.postgresql.Queries
+    sql:
+      |
+      MERGE INTO public.movimentacao_aeroportuaria AS mov_aero
+      USING public.vw_movimentacao_aeroportuaria_limpa AS v_stg
+      ON mov_aero.id_movimento = v_stg.id_movimento
+
+
+      WHEN MATCHED AND v_stg.dh_ingestao > mov_aero.dh_ingestao THEN
+      UPDATE SET 
+        ano                          = v_stg.ano,
+        mes                          = v_stg.mes,
+        dt_previsto                  = v_stg.dt_previsto,
+        hh_previsto                  = v_stg.hh_previsto,
+        dt_calco                     = v_stg.dt_calco,
+        hh_calco                     = v_stg.hh_calco,
+        dt_toque                     = v_stg.dt_toque,
+        hh_toque                     = v_stg.hh_toque,
+        nr_aeroporto_referencia      = v_stg.nr_aeroporto_referencia,
+        nr_movimento_tipo            = v_stg.nr_movimento_tipo,
+        nr_aeronave_marcas           = v_stg.nr_aeronave_marcas,
+        nr_aeronave_tipo             = v_stg.nr_aeronave_tipo,
+        nr_aeronave_operador         = v_stg.nr_aeronave_operador,
+        nr_voo_outro_aeroporto       = v_stg.nr_voo_outro_aeroporto,
+        nr_voo_numero                = v_stg.nr_voo_numero,
+        nr_service_type              = v_stg.nr_service_type,
+        nr_natureza                  = v_stg.nr_natureza,
+        nr_cabeceira                 = v_stg.nr_cabeceira,
+        nr_box                       = v_stg.nr_box,
+        nr_ponte_conector_remoto     = v_stg.nr_ponte_conector_remoto,
+        nr_terminal                  = v_stg.nr_terminal,
+        qt_pax_local                 = v_stg.qt_pax_local,
+        qt_pax_conexao_domestico     = v_stg.qt_pax_conexao_domestico,
+        qt_pax_conexao_internacional = v_stg.qt_pax_conexao_internacional,
+        qt_correio                   = v_stg.qt_correio,
+        qt_carga                     = v_stg.qt_carga,
+        dh_ingestao                  = v_stg.dh_ingestao,
+        nome_arquivo                 = v_stg.nome_arquivo
+
+      WHEN NOT MATCHED THEN
+      INSERT (
+        id_movimento, ano, mes, dt_previsto, hh_previsto, dt_calco, hh_calco, 
+        dt_toque, hh_toque, nr_aeroporto_referencia, nr_movimento_tipo, 
+        nr_aeronave_marcas, nr_aeronave_tipo, nr_aeronave_operador, 
+        nr_voo_outro_aeroporto, nr_voo_numero, nr_service_type, nr_natureza, 
+        nr_cabeceira, nr_box, nr_ponte_conector_remoto, nr_terminal, 
+        qt_pax_local, qt_pax_conexao_domestico, qt_pax_conexao_internacional, 
+        qt_correio, qt_carga, dh_ingestao, nome_arquivo
+      )
+      VALUES (
+        v_stg.id_movimento, v_stg.ano, v_stg.mes, v_stg.dt_previsto, 
+        v_stg.hh_previsto, v_stg.dt_calco, v_stg.hh_calco, 
+        v_stg.dt_toque, v_stg.hh_toque, v_stg.nr_aeroporto_referencia, 
+        v_stg.nr_movimento_tipo, v_stg.nr_aeronave_marcas, 
+        v_stg.nr_aeronave_tipo, v_stg.nr_aeronave_operador, 
+        v_stg.nr_voo_outro_aeroporto, v_stg.nr_voo_numero, 
+        v_stg.nr_service_type, v_stg.nr_natureza, v_stg.nr_cabeceira, 
+        v_stg.nr_box, v_stg.nr_ponte_conector_remoto, v_stg.nr_terminal, 
+        v_stg.qt_pax_local, v_stg.qt_pax_conexao_domestico, 
+        v_stg.qt_pax_conexao_internacional, v_stg.qt_correio, 
+        v_stg.qt_carga, v_stg.dh_ingestao, v_stg.nome_arquivo
+      );
+
+
+
+pluginDefaults:
+  - type: io.kestra.plugin.jdbc.postgresql
+    values:
+      url: jdbc:postgresql://pgdatabase:5432/travels
+      username: "{{kv('POSTGRES_USERNAME')}}"
+      password: "{{kv('POSTGRES_PASSWORD')}}"
+   
