@@ -1,7 +1,7 @@
-### Pipeline de Ingestão de Dados de Movimentação Aeroportuária (ANAC) ✈️
+# Pipeline de Ingestão de Dados de Movimentação Aeroportuária (ANAC) ✈️
 Este projeto utiliza o Kestra para orquestrar um pipeline de dados (ETL) que extrai informações de movimentação aeroportuária da API de Dados Abertos da ANAC, realiza o tratamento de dados e os carrega de forma resiliente em um banco de dados PostgreSQL.
 
-🚀 Tecnologias Utilizadas
+### 🚀 Tecnologias Utilizadas
 - Orquestrador: Kestra (Declarativo em YAML)
 
 - Banco de Dados: PostgreSQL
@@ -10,7 +10,7 @@ Este projeto utiliza o Kestra para orquestrar um pipeline de dados (ETL) que ext
 
 - Fonte de Dados: ANAC (Sistemas de Dados Abertos)
 
-🏗️ Arquitetura do Pipeline
+### 🏗️ Arquitetura do Pipeline
 O workflow foi desenhado seguindo as melhores práticas de engenharia de dados, dividido em camadas:
 
 1. Ingestão (Extract): Download dinâmico do CSV baseado nos inputs de year e month.
@@ -25,10 +25,10 @@ O workflow foi desenhado seguindo as melhores práticas de engenharia de dados, 
 
 4. Carga Final (Load): Utilização do comando MERGE (Upsert) para garantir a idempotência do pipeline, atualizando registros existentes e inserindo novos.
 
-📊 Visualização do Fluxo
+### 📊 Visualização do Fluxo
 Grafo gerado automaticamente pelo Kestra demonstrando a sequência de tasks e logs de auditoria.
 
-🛠️ Como Executar
+### 🛠️ Como Executar
 Pré-requisitos
 - Instância do Kestra rodando (Docker recomendado).
 
@@ -47,7 +47,7 @@ Instalação
 
 3. Execute o workflow selecionando o mês e ano desejados nos inputs.
 
-🧠 Destaques Técnicos
+### 🧠 Destaques Técnicos
 - Idempotência: O pipeline pode ser executado múltiplas vezes para o mesmo período sem gerar duplicidade de dados.
 
 - Resiliência: A separação entre Staging e Production permite que erros de tipagem no arquivo da ANAC não quebrem a tabela final de análise.
