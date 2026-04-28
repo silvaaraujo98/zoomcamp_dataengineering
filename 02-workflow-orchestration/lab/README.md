@@ -17,11 +17,11 @@ O workflow foi desenhado seguindo as melhores práticas de engenharia de dados, 
 
 2. Staging Area: Os dados brutos são carregados em uma tabela intermediária (movimentacao_aeroportuaria_staging) com todos os campos como TEXT para evitar falhas de carga.
 
-3. Limpeza e Transformação (Transform): * Criação de uma View de Limpeza (vw_movimentacao_aeroportuaria_limpa) que realiza o cast de tipos (Date, Time, Numeric).
+3. Limpeza e Transformação (Transform):  Criação de uma View de Limpeza (vw_movimentacao_aeroportuaria_limpa) que realiza o cast de tipos (Date, Time, Numeric).
 
-- Tratamento de valores nulos e strings inconsistentes.
+    - Tratamento de valores nulos e strings inconsistentes.
 
-- Geração de um id_movimento único via Hash MD5 para garantir a unicidade.
+    - Geração de um id_movimento único via Hash MD5 para garantir a unicidade.
 
 4. Carga Final (Load): Utilização do comando MERGE (Upsert) para garantir a idempotência do pipeline, atualizando registros existentes e inserindo novos.
 
